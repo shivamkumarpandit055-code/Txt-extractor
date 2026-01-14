@@ -1,44 +1,38 @@
 from fastapi import FastAPI, Query
 import requests
 from bs4 import BeautifulSoup
+import re
 
-app = FastAPI(title="Text Extractor API")
+app = FastAPI(title="Video URL Extractor API")
 
 @app.get("/")
 def home():
-    return {
-        "status": "running",
-        "usage": "/extract?url=https://example.com"
-    }
+    return {"status": "video extractor running"}
 
 @app.get("/extract")
-def extract_text(url: str = Query(..., description="URL of webpage/app")):
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+def extract_video(url: str = Query(...)):
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
 
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
+    r = requests.get(url, headers=headers, timeout=15)
+    html = r.text
 
-        soup = BeautifulSoup(response.text, "lxml")
+    video_urls = set()
 
-        # remove scripts & styles
-        for tag in soup(["script", "style", "noscript"]):
-            tag.decompose()
+    # mp4 / m3u8 direct
+    video_urls.update(re.findall(r'https?://[^"\']+\.mp4', html))
+    video_urls.update(re.findall(r'https?://[^"\']+\.m3u8', html))
 
-        text = soup.get_text(separator=" ")
+    # iframe src
+    soup = BeautifulSoup(html, "lxml")
+    for iframe in soup.find_all("iframe"):
+        src = iframe.get("src")
+        if src:
+            video_urls.add(src)
 
-        clean_text = " ".join(text.split())
-
-        return {
-            "success": True,
-            "url": url,
-            "text": clean_text
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+    return {
+        "success": True,
+        "found": len(video_urls),
+        "videos": list(video_urls)
+    }
