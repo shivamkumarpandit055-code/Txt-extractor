@@ -1,23 +1,12 @@
+FROM python:3.11-slim
 
-# Python Based Docker
-FROM python:latest
+WORKDIR /app
 
-# Installing Packages
-RUN apt update && apt upgrade -y
-RUN apt install git curl python3-pip ffmpeg aria2 -y
+COPY requirements.txt .
 
-# Updating Pip Packages
-RUN pip3 install -U pip
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copying Requirements
-COPY requirements.txt /requirements.txt
+COPY . .
 
-# Installing Requirements
-RUN cd /
-RUN pip3 install -U -r requirements.txt
-RUN mkdir /EXTRACTOR
-WORKDIR / EXTRACTOR
-COPY start.sh /start.sh
-
-# Running MessageSearchBot
-CMD ["/bin/bash", "/start.sh"
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "10000"]
